@@ -262,8 +262,9 @@ func _create_camera() -> void:
 func _update_camera() -> void:
     if player == null or camera == null:
         return
-    camera.position = player.position + Vector3(0, 22, 18)
-    camera.look_at(player.position + Vector3(0, 0.4, 0), Vector3.UP)
+    # Camera is driven by ThirdPersonCamera.gd. Keep this as a safe fallback.
+    camera.position = player.position + Vector3(0, 4.0, 6.0)
+    camera.look_at(player.position + Vector3(0, 1.2, 0), Vector3.UP)
 
 func _create_hud() -> void:
     var canvas := CanvasLayer.new()
@@ -284,7 +285,6 @@ func _create_hud() -> void:
 
 func _physics_process(delta: float) -> void:
     if game_over or extracted:
-        _update_camera()
         return
     elapsed += delta
     if elapsed >= 35.0:
@@ -298,11 +298,13 @@ func _physics_process(delta: float) -> void:
     _update_enemies(delta)
     _handle_actions(delta)
     _animate_character(player, player.velocity.length() > 0.1)
-    _update_camera()
     _update_hud()
 
 func _move_player(delta: float) -> void:
-    var input := Vector2(float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A)), float(Input.is_key_pressed(KEY_S)) - float(Input.is_key_pressed(KEY_W)))
+    var input := Vector2(
+        float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A)),
+        float(Input.is_key_pressed(KEY_W)) - float(Input.is_key_pressed(KEY_S))
+    )
     var move_direction := Vector3.ZERO
     if input.length_squared() > 0.0:
         var camera_basis := camera.global_transform.basis
@@ -316,9 +318,10 @@ func _move_player(delta: float) -> void:
         if right.length_squared() < 0.01:
             right = Vector3.RIGHT
         right = right.normalized()
-        move_direction = (right * input.x + forward * input.y)
+        move_direction = right * input.x + forward * input.y
         if move_direction.length_squared() > 0.0:
             move_direction = move_direction.normalized()
+
     var crouching := Input.is_key_pressed(KEY_CTRL)
     var running := Input.is_key_pressed(KEY_SHIFT) and not crouching
     var speed := 2.0 if crouching else (6.0 if running else 3.8)
@@ -328,6 +331,7 @@ func _move_player(delta: float) -> void:
     player.move_and_slide()
     player.position.x = clampf(player.position.x, -WORLD_LIMIT, WORLD_LIMIT)
     player.position.z = clampf(player.position.z, -WORLD_LIMIT, WORLD_LIMIT)
+
     if move_direction.length_squared() > 0.0:
         player.rotation.y = atan2(move_direction.x, move_direction.z)
         if running:
