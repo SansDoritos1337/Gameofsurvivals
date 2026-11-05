@@ -37,6 +37,7 @@ func _ready() -> void:
     _create_player()
     _create_camera()
     _create_hud()
+    _spawn_survivor(Vector3(-2, 0, 4))
     for position in [Vector3(-12, 0, -8), Vector3(-7, 0, 12), Vector3(4, 0, -13), Vector3(11, 0, 5), Vector3(-16, 0, 3)]:
         _spawn_loot(position)
     _spawn_enemy(Vector3(-17, 0, -13))
@@ -71,6 +72,7 @@ func _create_world() -> void:
         {"position": Vector3(13, 1, 7), "size": Vector3(5, 2, 7)}
     ]:
         _create_building(data["position"], data["size"])
+    _create_grass()
 
     var exit_zone := MeshInstance3D.new()
     exit_zone.name = "ExtractionZone"
@@ -96,6 +98,34 @@ func _create_world() -> void:
     env.ambient_light_energy = 0.55
     environment.environment = env
     add_child(environment)
+
+func _create_grass() -> void:
+    var building_areas := [
+        Rect2(-16.5, -14.5, 7, 5), Rect2(-6, -17.5, 6, 5),
+        Rect2(5, -14.5, 8, 5), Rect2(-17, 9.5, 6, 7),
+        Rect2(-3, 10.5, 8, 5), Rect2(10.5, 3.5, 5, 7)
+    ]
+    var created := 0
+    var attempts := 0
+    while created < 110 and attempts < 500:
+        attempts += 1
+        var x := rng.randf_range(-23.0, 23.0)
+        var z := rng.randf_range(-23.0, 23.0)
+        var inside_building := false
+        for area in building_areas:
+            if area.has_point(Vector2(x, z)):
+                inside_building = true
+                break
+        if inside_building or _flat_distance(Vector3(x, 0, z), EXIT_POSITION) < 3.5:
+            continue
+        var tuft := Node3D.new()
+        tuft.position = Vector3(x, 0, z)
+        tuft.rotation.y = rng.randf_range(0.0, TAU)
+        add_child(tuft)
+        for blade_index in range(3):
+            var blade := _create_box(tuft, "GrassBlade", Vector3(0.07, rng.randf_range(0.25, 0.55), 0.07), Vector3(rng.randf_range(-0.13, 0.13), 0.22, rng.randf_range(-0.13, 0.13)), Color("526f43") if blade_index % 2 == 0 else Color("71834b"), false)
+            blade.rotation.z = rng.randf_range(-0.25, 0.25)
+        created += 1
 
 func _create_building(position: Vector3, size: Vector3) -> void:
     var body := StaticBody3D.new()
@@ -130,6 +160,26 @@ func _create_box(parent: Node3D, node_name: String, size: Vector3, position: Vec
         parent.add_child(collision)
     return instance
 
+func _create_sphere(parent: Node3D, node_name: String, radius: float, position: Vector3, color: Color) -> MeshInstance3D:
+    var instance := MeshInstance3D.new()
+    instance.name = node_name
+    var sphere := SphereMesh.new()
+    sphere.radius = radius
+    sphere.height = radius * 2.0
+    instance.mesh = sphere
+    instance.position = position
+    instance.material_override = _material(color)
+    parent.add_child(instance)
+    return instance
+
+func _create_human_model(parent: Node3D, shirt_color: Color) -> void:
+    _create_box(parent, "Body", Vector3(0.62, 0.78, 0.34), Vector3(0, 1.12, 0), shirt_color, false)
+    _create_sphere(parent, "Head", 0.24, Vector3(0, 1.75, 0), Color("d4a27c"))
+    _create_box(parent, "LeftArm", Vector3(0.2, 0.68, 0.24), Vector3(-0.43, 1.12, 0), shirt_color.darkened(0.1), false)
+    _create_box(parent, "RightArm", Vector3(0.2, 0.68, 0.24), Vector3(0.43, 1.12, 0), shirt_color.darkened(0.1), false)
+    _create_box(parent, "LeftLeg", Vector3(0.24, 0.66, 0.27), Vector3(-0.17, 0.35, 0), Color("343b46"), false)
+    _create_box(parent, "RightLeg", Vector3(0.24, 0.66, 0.27), Vector3(0.17, 0.35, 0), Color("343b46"), false)
+
 func _material(color: Color, transparent := false) -> StandardMaterial3D:
     var result := StandardMaterial3D.new()
     result.albedo_color = color
@@ -149,20 +199,37 @@ func _create_actor(color: Color, actor_name: String) -> CharacterBody3D:
     collision.shape = capsule
     collision.position.y = 0.9
     actor.add_child(collision)
-    var mesh_instance := MeshInstance3D.new()
-    var mesh := CapsuleMesh.new()
-    mesh.radius = 0.45
-    mesh.height = 1.8
-    mesh_instance.mesh = mesh
-    mesh_instance.position.y = 0.9
-    mesh_instance.material_override = _material(color)
-    actor.add_child(mesh_instance)
+    if actor_name == "Player":
+        _create_human_model(actor, color)
+    else:
+        var mesh_instance := MeshInstance3D.new()
+        var mesh := CapsuleMesh.new()
+        mesh.radius = 0.45
+        mesh.height = 1.8
+        mesh_instance.mesh = mesh
+        mesh_instance.position.y = 0.9
+        mesh_instance.material_override = _material(color)
+        actor.add_child(mesh_instance)
     add_child(actor)
     return actor
 
 func _create_player() -> void:
     player = _create_actor(Color("55b9d1"), "Player")
     player.position = PLAYER_START
+
+func _spawn_survivor(position: Vector3) -> void:
+    var survivor := Node3D.new()
+    survivor.name = "Ocalały"
+    survivor.position = position
+    add_child(survivor)
+    _create_human_model(survivor, Color("b28b53"))
+    var name_tag := Label3D.new()
+    name_tag.text = "OCALAŁY"
+    name_tag.position = Vector3(0, 2.25, 0)
+    name_tag.font_size = 32
+    name_tag.modulate = Color("fff0c4")
+    name_tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+    survivor.add_child(name_tag)
 
 func _create_camera() -> void:
     camera = Camera3D.new()
