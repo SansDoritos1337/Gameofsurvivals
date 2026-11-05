@@ -172,13 +172,31 @@ func _create_sphere(parent: Node3D, node_name: String, radius: float, position: 
     parent.add_child(instance)
     return instance
 
-func _create_human_model(parent: Node3D, shirt_color: Color) -> void:
-    _create_box(parent, "Body", Vector3(0.62, 0.78, 0.34), Vector3(0, 1.12, 0), shirt_color, false)
-    _create_sphere(parent, "Head", 0.24, Vector3(0, 1.75, 0), Color("d4a27c"))
-    _create_box(parent, "LeftArm", Vector3(0.2, 0.68, 0.24), Vector3(-0.43, 1.12, 0), shirt_color.darkened(0.1), false)
-    _create_box(parent, "RightArm", Vector3(0.2, 0.68, 0.24), Vector3(0.43, 1.12, 0), shirt_color.darkened(0.1), false)
-    _create_box(parent, "LeftLeg", Vector3(0.24, 0.66, 0.27), Vector3(-0.17, 0.35, 0), Color("343b46"), false)
-    _create_box(parent, "RightLeg", Vector3(0.24, 0.66, 0.27), Vector3(0.17, 0.35, 0), Color("343b46"), false)
+func _create_human_model(parent: Node3D, shirt_color: Color, skin_color: Color = Color("d4a27c"), hair_color: Color = Color("2d221d"), eye_color: Color = Color("f7f1df"), monster_style: bool = false) -> void:
+    var torso := _create_box(parent, "Torso", Vector3(0.64, 0.76, 0.34), Vector3(0, 1.12, 0), shirt_color, false)
+    var head := _create_sphere(parent, "Head", 0.24, Vector3(0, 1.82, 0), skin_color)
+    var hair := _create_box(parent, "Hair", Vector3(0.36, 0.12, 0.34), Vector3(0, 1.98, 0.01), hair_color, false)
+    var left_arm := _create_box(parent, "LeftArm", Vector3(0.18, 0.7, 0.18), Vector3(-0.45, 1.12, 0), shirt_color.darkened(0.12), false)
+    var right_arm := _create_box(parent, "RightArm", Vector3(0.18, 0.7, 0.18), Vector3(0.45, 1.12, 0), shirt_color.darkened(0.12), false)
+    var left_leg := _create_box(parent, "LeftLeg", Vector3(0.22, 0.7, 0.22), Vector3(-0.16, 0.34, 0), Color("2d3540"), false)
+    var right_leg := _create_box(parent, "RightLeg", Vector3(0.22, 0.7, 0.22), Vector3(0.16, 0.34, 0), Color("2d3540"), false)
+
+    if monster_style:
+        torso.material_override = _material(Color("7d2c35"))
+        head.material_override = _material(Color("9a3a3f"))
+        hair.material_override = _material(Color("120d12"))
+        left_arm.material_override = _material(Color("7d2c35"))
+        right_arm.material_override = _material(Color("7d2c35"))
+        left_leg.material_override = _material(Color("3c2024"))
+        right_leg.material_override = _material(Color("3c2024"))
+        _create_sphere(parent, "EyeLeft", 0.05, Vector3(-0.08, 1.85, 0.2), eye_color)
+        _create_sphere(parent, "EyeRight", 0.05, Vector3(0.08, 1.85, 0.2), eye_color)
+        var jaw := _create_box(parent, "Jaw", Vector3(0.24, 0.12, 0.18), Vector3(0, 1.58, 0.15), Color("5d1d20"), false)
+    else:
+        var belt := _create_box(parent, "Belt", Vector3(0.7, 0.1, 0.36), Vector3(0, 0.72, 0), Color("4a2e26"), false)
+        var backpack := _create_box(parent, "Backpack", Vector3(0.34, 0.52, 0.24), Vector3(0, 1.18, -0.18), Color("6a7788"), false)
+        _create_sphere(parent, "EyeLeft", 0.03, Vector3(-0.08, 1.85, 0.2), eye_color)
+        _create_sphere(parent, "EyeRight", 0.03, Vector3(0.08, 1.85, 0.2), eye_color)
 
 func _material(color: Color, transparent := false) -> StandardMaterial3D:
     var result := StandardMaterial3D.new()
@@ -200,7 +218,9 @@ func _create_actor(color: Color, actor_name: String) -> CharacterBody3D:
     collision.position.y = 0.9
     actor.add_child(collision)
     if actor_name == "Player":
-        _create_human_model(actor, color)
+        _create_human_model(actor, Color("5d7d9d"), Color("d9b08a"), Color("2d1c17"), Color("eef4ff"), false)
+    elif actor_name == "Monster":
+        _create_human_model(actor, Color("7d2c35"), Color("9a3a3f"), Color("130d12"), Color("f7f4ef"), true)
     else:
         var mesh_instance := MeshInstance3D.new()
         var mesh := CapsuleMesh.new()
@@ -222,7 +242,7 @@ func _spawn_survivor(position: Vector3) -> void:
     survivor.name = "Ocalały"
     survivor.position = position
     add_child(survivor)
-    _create_human_model(survivor, Color("b28b53"))
+    _create_human_model(survivor, Color("b28b53"), Color("d9b08a"), Color("362015"), Color("f5f4ee"), false)
     var name_tag := Label3D.new()
     name_tag.text = "OCALAŁY"
     name_tag.position = Vector3(0, 2.25, 0)
@@ -446,3 +466,13 @@ func _update_hud() -> void:
         message_label.text = "Przytrzymaj E w strefie wyjścia, aby uciec."
     else:
         message_label.text = ""
+
+func _process(delta: float) -> void:
+    _physics_process(delta)
+
+func _input(event: InputEvent) -> void:
+    _unhandled_input(event)
+
+func _draw() -> void:
+    pass
+
