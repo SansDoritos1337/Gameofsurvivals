@@ -2,9 +2,20 @@ extends Node
 
 var player: Node3D
 var game_camera: Camera3D
+var yaw := 0.0
+var pitch := 18.0
+var distance := 6.0
+var min_pitch := -20.0
+var max_pitch := 35.0
 
 func _ready() -> void:
     process_priority = 10
+    Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _input(event: InputEvent) -> void:
+    if event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+        yaw -= event.relative.x * 0.005
+        pitch = clamp(pitch - event.relative.y * 0.005, min_pitch, max_pitch)
 
 func _process(_delta: float) -> void:
     if player == null:
@@ -14,6 +25,9 @@ func _process(_delta: float) -> void:
     if player == null or game_camera == null:
         return
 
-    # Kamera trzecioosobowa: blisko za postacią, patrzy na jej górną część.
-    game_camera.global_position = player.global_position + Vector3(0.0, 4.2, 6.0)
-    game_camera.look_at(player.global_position + Vector3(0.0, 1.2, 0.0), Vector3.UP)
+    var target := player.global_position + Vector3(0.0, 1.3, 0.0)
+    var offset := Vector3(0.0, 0.0, distance)
+    offset = offset.rotated(Vector3.UP, yaw)
+    offset.y = distance * 0.45 + pitch * 0.08
+    game_camera.global_position = target + offset
+    game_camera.look_at(target, Vector3.UP)

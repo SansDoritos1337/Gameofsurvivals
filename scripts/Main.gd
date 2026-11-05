@@ -191,10 +191,10 @@ func _create_human_model(parent: Node3D, shirt_color: Color, skin_color: Color =
         right_leg.material_override = _material(Color("3c2024"))
         _create_sphere(parent, "EyeLeft", 0.05, Vector3(-0.08, 1.85, 0.2), eye_color)
         _create_sphere(parent, "EyeRight", 0.05, Vector3(0.08, 1.85, 0.2), eye_color)
-        var jaw := _create_box(parent, "Jaw", Vector3(0.24, 0.12, 0.18), Vector3(0, 1.58, 0.15), Color("5d1d20"), false)
+        _create_box(parent, "Jaw", Vector3(0.24, 0.12, 0.18), Vector3(0, 1.58, 0.15), Color("5d1d20"), false)
     else:
-        var belt := _create_box(parent, "Belt", Vector3(0.7, 0.1, 0.36), Vector3(0, 0.72, 0), Color("4a2e26"), false)
-        var backpack := _create_box(parent, "Backpack", Vector3(0.34, 0.52, 0.24), Vector3(0, 1.18, -0.18), Color("6a7788"), false)
+        _create_box(parent, "Belt", Vector3(0.7, 0.1, 0.36), Vector3(0, 0.72, 0), Color("4a2e26"), false)
+        _create_box(parent, "Backpack", Vector3(0.34, 0.52, 0.24), Vector3(0, 1.18, -0.18), Color("6a7788"), false)
         _create_sphere(parent, "EyeLeft", 0.03, Vector3(-0.08, 1.85, 0.2), eye_color)
         _create_sphere(parent, "EyeRight", 0.03, Vector3(0.08, 1.85, 0.2), eye_color)
 
@@ -297,28 +297,65 @@ func _physics_process(delta: float) -> void:
     _move_player(delta)
     _update_enemies(delta)
     _handle_actions(delta)
+    _animate_character(player, player.velocity.length() > 0.1)
     _update_camera()
     _update_hud()
 
 func _move_player(delta: float) -> void:
     var input := Vector2(float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A)), float(Input.is_key_pressed(KEY_S)) - float(Input.is_key_pressed(KEY_W)))
-    var direction := Vector3(input.x, 0, input.y)
-    if direction.length_squared() > 1.0:
-        direction = direction.normalized()
+    var move_direction := Vector3.ZERO
+    if input.length_squared() > 0.0:
+        var camera_basis := camera.global_transform.basis
+        var forward := -camera_basis.z
+        forward.y = 0.0
+        if forward.length_squared() < 0.01:
+            forward = Vector3.FORWARD
+        forward = forward.normalized()
+        var right := camera_basis.x
+        right.y = 0.0
+        if right.length_squared() < 0.01:
+            right = Vector3.RIGHT
+        right = right.normalized()
+        move_direction = (right * input.x + forward * input.y)
+        if move_direction.length_squared() > 0.0:
+            move_direction = move_direction.normalized()
     var crouching := Input.is_key_pressed(KEY_CTRL)
     var running := Input.is_key_pressed(KEY_SHIFT) and not crouching
     var speed := 2.0 if crouching else (6.0 if running else 3.8)
-    player.velocity.x = direction.x * speed
-    player.velocity.z = direction.z * speed
+    player.velocity.x = move_direction.x * speed
+    player.velocity.z = move_direction.z * speed
     player.velocity.y = 0.0
     player.move_and_slide()
     player.position.x = clampf(player.position.x, -WORLD_LIMIT, WORLD_LIMIT)
     player.position.z = clampf(player.position.z, -WORLD_LIMIT, WORLD_LIMIT)
-    if direction.length_squared() > 0.0:
+    if move_direction.length_squared() > 0.0:
+        player.rotation.y = atan2(move_direction.x, move_direction.z)
         if running:
             _make_noise(player.position, 12.0, 0.3)
         elif not crouching:
             _make_noise(player.position, 6.0, 0.2)
+
+func _animate_character(actor: Node3D, moving: bool) -> void:
+    if actor == null:
+        return
+    var cycle := fmod(elapsed * 12.0, TAU)
+    var swing := sin(cycle) if moving else 0.0
+    var left_leg := actor.get_node_or_null("LeftLeg") as MeshInstance3D
+    var right_leg := actor.get_node_or_null("RightLeg") as MeshInstance3D
+    var left_arm := actor.get_node_or_null("LeftArm") as MeshInstance3D
+    var right_arm := actor.get_node_or_null("RightArm") as MeshInstance3D
+    if left_leg != null:
+        left_leg.rotation.x = -swing * 0.7
+    if right_leg != null:
+        right_leg.rotation.x = swing * 0.7
+    if left_arm != null:
+        left_arm.rotation.x = swing * 0.55
+    if right_arm != null:
+        right_arm.rotation.x = -swing * 0.55
+
+    var torso := actor.get_node_or_null("Torso") as MeshInstance3D
+    if torso != null:
+        torso.rotation.z = sin(cycle * 0.5) * 0.08
 
 func _spawn_enemy(position: Vector3) -> void:
     var actor := _create_actor(Color("a93e45"), "Monster")
@@ -339,9 +376,11 @@ func _update_enemies(delta: float) -> void:
         var direction := Vector3.ZERO
         if enemy["alert"] and distance > 0.1:
             direction = offset.normalized()
+            actor.rotation.y = atan2(direction.x, direction.z)
         actor.velocity = direction * float(enemy["speed"])
         actor.velocity.y = 0.0
         actor.move_and_slide()
+        _animate_character(actor, direction.length_squared() > 0.0)
         if distance < 1.25 and attack_cooldown <= 0.0:
             _damage_player(12)
             attack_cooldown = 1.0
