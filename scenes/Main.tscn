@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scripts/GroundedMain.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/MegaMain.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/ThirdPersonCamera.gd" id="2"]
 
 [node name="Main" type="Node3D"]

@@ -11,6 +11,7 @@ var rotating := false
 var aiming := false
 var default_fov := 55.0
 var aim_fov := 42.0
+var look_sensitivity := 0.005
 
 func _ready() -> void:
     process_priority = 10
@@ -30,11 +31,10 @@ func _input(event: InputEvent) -> void:
             rotating = event.pressed
             get_viewport().set_input_as_handled()
     elif event is InputEventMouseMotion and rotating:
-        yaw -= event.relative.x * 0.005
-        pitch = clampf(pitch - event.relative.y * 0.005, min_pitch, max_pitch)
+        yaw -= event.relative.x * look_sensitivity
+        pitch = clampf(pitch - event.relative.y * look_sensitivity * 100.0, min_pitch, max_pitch)
     elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
         rotating = false
-        aiming = false
 
 func _process(_delta: float) -> void:
     if player == null:
